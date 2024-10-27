@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gioco 3D - Mago e Cani</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        div#score { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; }
+        div#timer { position: absolute; top: 10px; left: 200px; color: white; font-size: 20px; } 
+        div#home { text-align: center; margin-top: 50px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 5px; }
+        h2 { margin-top: 30px; }
+        div#leaderboard, div#game { display: none; }
+        #game button { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+    <div id="home">
+        <h1>Benvenuti nel Gioco 3D - Mago e Cani</h1>
+        <button onclick="startGame()">Gioca</button>
+        <button onclick="showLeaderboard()">Classifica</button>
+        <button id="musicButton" onclick="toggleMusic()">Musica On</button>
+        <div id="leaderboard">
+            <h2>Classifica</h2>
+            <ul id="leaderboardList">
+                <!-- Classifica verrà aggiunta qui -->
+            </ul>
+            <button onclick="hideLeaderboard()">Torna alla Home</button>
+        </div>
+    </div>
+    <div id="game">
+        <div id="score">Punteggio: 0</div>
+        <div id="timer">Tempo rimasto: 120s</div>
+        <button onclick="returnHome()">Torna alla Home</button>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let animationFrameId;
+        let gameTimer;
+        const gameDuration = 120000; 
+        let remainingTime = gameDuration / 1000; 
+        let musicPlaying = false;
+        let audio = new Audio('https://www.bensound.com/bensound-music/bensound-anewbeginning.mp3'); // Musica di sottofondo
+
+        function startGame() {
+            document.getElementById('home').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            score = 0;
+            remainingTime = gameDuration / 1000; 
+            scoreElement.innerHTML = `Punteggio: ${score}`;
+            timerElement.innerHTML = `Tempo rimasto: ${remainingTime}s`;
+            gameTimer = setInterval(updateTimer, 1000);
+            setTimeout(endGame, gameDuration);
+            animate();
+        }
+
+        function returnHome() {
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('home').style.display = 'block';
+            cancelAnimationFrame(animationFrameId);
+            clearInterval(gameTimer);
+        }
+
+        function showLeaderboard() {
+            document.getElementById('leaderboard').style.display = 'block';
+        }
+
+        function hideLeaderboard() {
+            document.getElementById('leaderboard').style.display = 'none';
+        }
+
+        function endGame() {
+            cancelAnimationFrame(animationFrameId);
+            clearInterval(gameTimer);
+            alert(`Tempo scaduto! Il tuo punteggio finale è: ${score}`);
+            returnHome();
+        }
+
+        function updateTimer() {
+            remainingTime--;
+            timerElement.innerHTML = `Tempo rimasto: ${remainingTime}s`;
+            if (remainingTime <= 0) {
+                clearInterval(gameTimer);
+            }
+        }
+
+        function toggleMusic() {
+            if (musicPlaying) {
+                audio.pause();
+                document.getElementById('musicButton').innerText = 'Musica On';
+            } else {
+                audio.play();
+                document.getElementById('musicButton').innerText = 'Musica Off';
+            }
+            musicPlaying = !musicPlaying;
+        }
+
+        const leaderboard = [
+            { name: 'Player1', score: 100 },
+            { name: 'Player2', score: 90 },
+            { name: 'Player3', score: 80 }
+        ];
+
+        const leaderboardElement = document.getElementById('leaderboardList');
+        leaderboard.forEach(player => {
+            const li = document.createElement('li');
+            li.textContent = `${player.name}: ${player.score} punti`;
+            leaderboardElement.appendChild(li);
+        });
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('game').appendChild(renderer.domElement);
+
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1).normalize();
+        scene.add(light);
+
+        const wizardMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const dogMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+        const wizardGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const wizard = new THREE.Mesh(wizardGeometry, wizardMaterial);
+        wizard.position.set(0, 0, 0);
+        scene.add(wizard);
+
+        const dogGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const dogs = [];
+        function addDog() {
+            const dog = new THREE.Mesh(dogGeometry, dogMaterial);
+            dog.position.set(Math.random() * 8 - 4, Math.random() * 8 - 4, 0);
+            dogs.push(dog);
+            scene.add(dog);
+        }
+        for (let i = 0; i < 3; i++) {
+            addDog();
+        }
+
+        let score = 0;
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        camera.position.z = 5;
+
+        function handleInput() {
+            const speed = 0.2;
+            if (keyboard[87]) wizard.position.y = Math.min(wizard.position.y + speed, 4); // W
+            if (keyboard[83]) wizard.position.y = Math.max(wizard.position.y - speed, -4); // S
+            if (keyboard[65]) wizard.position.x = Math.max(wizard.position.x - speed, -4); // A
+            if (keyboard[68]) wizard.position.x = Math.min(wizard.position.x + speed, 4); // D
+        }
+
+        function detectCollisions() {
+            for (let i = dogs.length - 1; i >= 0; i--) {
+                if (wizard.position.distanceTo(dogs[i].position) < 0.8) {
+                    scene.remove(dogs[i]);
+                    dogs.splice(i, 1);
+                    addDog();
+                    score += 10;
+                    scoreElement.innerHTML = `Punteggio: ${score}`;
+                }
+                dogs[i].position.x = Math.max(Math.min(dogs[i].position.x, 4), -4);
+                dogs[i].position.y = Math.max(Math.min(dogs[i].position.y, 4), -4);
+            }
+        }
+
+        const keyboard = {};
+        window.addEventListener('keydown', (event) => { keyboard[event.keyCode] = true; });
+        window.addEventListener('keyup', (event) => { keyboard[event.keyCode] = false; });
+
+        function animate() {
+            handleInput();
+            detectCollisions();
+            renderer.render(scene, camera);
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
